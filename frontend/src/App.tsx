@@ -4,6 +4,7 @@ import AppLayout from "./components/layout/AppLayout";
 import { Toaster } from "sonner";
 import { QueryClient,QueryClientProvider } from '@tanstack/react-query'
 import ChatWindow from "./components/layout/ChatWindow";
+import { AuthProvider } from "./context/AuthContext";
 
 const App = () => {
 
@@ -36,7 +37,9 @@ const App = () => {
     <>
       <Toaster position="top-right" richColors />
       <QueryClientProvider client={queryClient}>
+        <AuthProvider>
         <RouterProvider router={router} />
+        </AuthProvider>
       </QueryClientProvider>
     </>
   )

@@ -34,3 +34,9 @@ export const getAllUsers = async (
     throw error;
   }
 };
+
+// Inside AuthContext.tsx
+export const getMe = async (): Promise<User> => {
+  const { data } = await api.get("/users/me");
+  return data;
+};

@@ -16,10 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { userRegisterSchema } from "@/features/auth/authSchema";
 import type z from "zod";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 type SignUpInput = z.infer<typeof userRegisterSchema>;
 
 export default function SignupForm() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate()
 
   const {
     register,
@@ -37,9 +41,13 @@ export default function SignupForm() {
 
   const onSubmit = async (data: SignUpInput) => {
     try {
-      const response = await registerUser(data);
-      console.log(response);
+      await registerUser(data);
+
+      await queryClient.invalidateQueries({ queryKey: ["authUser"] });
+
       toast.success("Registration successful! Welcome aboard.",{position:"top-right",richColors:true});
+
+      navigate("/")
       
     } catch (error: any) {
       // 3. Handle specific error messages from Axios
