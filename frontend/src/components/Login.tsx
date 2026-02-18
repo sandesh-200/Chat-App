@@ -13,14 +13,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { userLoginSchema } from "@/features/auth/authSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type z from "zod";
 
 type LoginInput = z.infer<typeof userLoginSchema>;
 
 export default function LoginForm() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate()
   const {
     register,
     handleSubmit,
@@ -35,14 +39,16 @@ export default function LoginForm() {
 
   const onSubmit = async (data: LoginInput) => {
     try {
-      const response = await loginUser(data);
-      console.log(response);
+      await loginUser(data);
+      await queryClient.invalidateQueries({ queryKey: ["authUser"] });
+
       toast.success("Login successful!", {
         position: "top-right",
         richColors: true,
       });
+      navigate('/')
     } catch (error: any) {
-      console.log(error.response.data.message)
+      console.error(error.response.data.message)
       toast.error(error.response?.data?.message || "Something went wrong");
     }
   };

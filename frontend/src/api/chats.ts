@@ -15,7 +15,6 @@ export const getChat = async (chatId: string): Promise<Chat> => {
   try {
     const response = await api.get(`/chats/${chatId}`);
     return response.data.chat;
-    // console.log(response.data.chat);
   } catch (error) {
     console.error("Error fetching chat:", error);
     throw error;

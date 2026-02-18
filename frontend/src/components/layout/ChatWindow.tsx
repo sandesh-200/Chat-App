@@ -8,20 +8,55 @@ import { useQuery } from "@tanstack/react-query";
 import { getChat } from "@/api/chats";
 import type { Chat } from "./Sidebar";
 import { getChatMessages, type FormattedMessage } from "@/api/messages";
+import socket from "@/lib/socket";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 const ChatWindow = () => {
+  const { user } = useAuth();
   const { chatId } = useParams<{ chatId: string }>();
+  const [text, setText] = useState("");
 
-  const {
-    data: chatData,
-    isLoading: isChatLoading,
-  } = useQuery<Chat>({
+  const [liveMessages, setLiveMessages] = useState<FormattedMessage[]>([]);
+
+useEffect(() => {
+  if (!chatId || !user) return;
+
+  socket.emit("join-chat", chatId);
+
+  const handleMessage = (newMessage: any) => {
+    const incomingSenderId = newMessage.senderId?._id || newMessage.senderId;
+
+    if (incomingSenderId === user._id) return;
+
+    setLiveMessages((prev) => [
+      ...prev,
+      {
+        id: newMessage._id,
+        text: newMessage.content,
+        time: new Date(newMessage.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        isMe: false, 
+        sender: incomingSenderId,
+      },
+    ]);
+  };
+
+  socket.on("receive-message", handleMessage);
+  return () => { socket.off("receive-message", handleMessage); };
+}, [chatId, user?._id]); // Add user._id to dependency array
+
+  const { data: chatData, isLoading: isChatLoading } = useQuery<Chat>({
     queryKey: ["chatData", chatId],
     queryFn: () => getChat(chatId!),
     enabled: !!chatId,
   });
 
-  const { data: messages, isLoading: isMessagesLoading } = useQuery<FormattedMessage[]>({
+  const { data: messages, isLoading: isMessagesLoading } = useQuery<
+    FormattedMessage[]
+  >({
     queryKey: ["messages", chatId],
     queryFn: () => getChatMessages(chatId!),
     enabled: !!chatId,
@@ -40,6 +75,30 @@ const ChatWindow = () => {
 
   const { name, initial } = getChatDetails();
 
+  const allMessages = [...(messages || []), ...liveMessages];
+
+const handleSendMessage = () => {
+  if (!text.trim() || !chatId || !user) return;
+
+  socket.emit("send-message", {
+    conversationId: chatId,
+    content: text,
+    type: "text",
+  });
+
+  setLiveMessages((prev) => [
+    ...prev,
+    {
+      id: Date.now().toString(), // Temp ID
+      text: text,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      isMe: true,
+      sender: user._id, 
+    },
+  ]);
+  setText("");
+};
+
   if (!chatId) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-background text-muted-foreground">
@@ -48,18 +107,18 @@ const ChatWindow = () => {
     );
   }
 
-if (isChatLoading) {
-  return (
-    <div className="h-full w-full flex flex-col items-center justify-center bg-background gap-3">
-      <div className="flex flex-col items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">
-          Loading conversation...
-        </p>
+  if (isChatLoading) {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center bg-background gap-3">
+        <div className="flex flex-col items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">
+            Loading conversation...
+          </p>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   return (
     <div className="flex flex-col h-full w-full bg-background border-l">
@@ -68,7 +127,7 @@ if (isChatLoading) {
         <div className="flex items-center gap-3">
           <div className="relative">
             <Avatar className="h-10 w-10 border">
-              <AvatarImage src="" /> 
+              <AvatarImage src="" />
               <AvatarFallback className="bg-primary/10 text-primary font-bold">
                 {initial}
               </AvatarFallback>
@@ -86,15 +145,17 @@ if (isChatLoading) {
       <ScrollArea className="flex-1 p-4 relative">
         {/* 3. Centered "Messages Only" loading state */}
         {isMessagesLoading ? (
-           <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Fetching messages...</span>
-              </div>
-           </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
+                Fetching messages...
+              </span>
+            </div>
+          </div>
         ) : (
           <div className="flex flex-col gap-6">
-            {messages?.map((msg, idx) => (
+            {allMessages?.map((msg, idx) => (
               <div
                 key={msg.id || idx}
                 className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}
@@ -120,7 +181,9 @@ if (isChatLoading) {
                   <span className="text-[10px] text-muted-foreground font-medium">
                     {msg.time}
                   </span>
-                  {msg.isMe && <span className="text-green-500 text-[10px]">✓✓</span>}
+                  {msg.isMe && (
+                    <span className="text-green-500 text-[10px]">✓✓</span>
+                  )}
                 </div>
               </div>
             ))}
@@ -132,10 +195,22 @@ if (isChatLoading) {
       <footer className="p-4 bg-background border-t">
         <div className="flex items-center gap-2 border rounded-xl p-2 bg-muted/30">
           <Input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
             placeholder="Enter message..."
             className="border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
           />
-          <Button size="sm" className="ml-2 h-9 px-4">
+          <Button
+            size="sm"
+            className="ml-2 h-9 px-4"
+            onClick={handleSendMessage} // Move your logic to a named function
+          >
             Send
           </Button>
         </div>

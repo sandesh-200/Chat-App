@@ -45,9 +45,6 @@ export function ChatCreateModal({ children }: { children: React.ReactNode }) {
   const createChatMutation = useMutation({
     mutationFn: (userId: string) => createPersonalChat(userId),
     onSuccess: (data) => {
-      console.log("Received isNew:", data.isNew, "type:", typeof data.isNew);
-
-      console.log(data.isNew)
       if (data.chat) {
         if (data.isNew===true) {
           toast.success("Chat created!", { richColors: true });

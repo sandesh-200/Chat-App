@@ -7,7 +7,6 @@ import jwt from 'jsonwebtoken'
 
 export async function registerUser(req, res) {
   const result = userRegisterSchema.safeParse(req.body);
-  console.log(result)
 
 if (!result.success) {
   return res.status(400).json({
