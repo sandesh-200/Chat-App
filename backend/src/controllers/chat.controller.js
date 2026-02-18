@@ -20,12 +20,14 @@ export async function createPersonalChat(req, res) {
     let existingChat = await chatModel.findOne({
       type: "personal",
       participants: { $all: [loggedInUserId, userId] },
+      
     });
 
     if (existingChat) {
       return res.status(200).json({
         message: "Personal chat already exists",
         chat: existingChat,
+        isNew: false
       });
     }
 
@@ -37,6 +39,7 @@ export async function createPersonalChat(req, res) {
     res.status(201).json({
       message: "Personal chat created successfully",
       chat: newChat,
+      isNew: true
     });
   } catch (error) {
     return res.status(500).json({
@@ -92,6 +95,14 @@ export const getUserChats = async (req, res) => {
         .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limit)
+        .populate({
+          path:"participants",
+          select:"fullName"
+        })
+        .populate({
+          path: "lastMessage",
+          select: "content type createdAt senderId",
+        })
         .lean(),
 
       chatModel.countDocuments({ participants: userId })
