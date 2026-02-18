@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import { Toaster } from "sonner";
 import { QueryClient,QueryClientProvider } from '@tanstack/react-query'
+import ChatWindow from "./components/layout/ChatWindow";
 
 const App = () => {
 
@@ -12,7 +13,16 @@ const App = () => {
     {
       path: "/",
       element: <AppLayout />,
-      children: [],
+      children: [
+        {
+        index: true,
+        element: <ChatWindow />
+      },
+        {
+          path:"/chats/:chatId",
+          element:<ChatWindow/>
+        }
+      ],
     },
     {
       path: "/get-started",
