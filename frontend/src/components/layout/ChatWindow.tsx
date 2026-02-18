@@ -1,5 +1,5 @@
-import { MoreHorizontal, Loader2 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MoreHorizontal, Loader2, MessageSquarePlus } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,113 +9,138 @@ import { getChat } from "@/api/chats";
 import type { Chat } from "./Sidebar";
 import { getChatMessages, type FormattedMessage } from "@/api/messages";
 import socket from "@/lib/socket";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 const ChatWindow = () => {
   const { user } = useAuth();
   const { chatId } = useParams<{ chatId: string }>();
   const [text, setText] = useState("");
-
   const [liveMessages, setLiveMessages] = useState<FormattedMessage[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-useEffect(() => {
-  if (!chatId || !user) return;
-
-  socket.emit("join-chat", chatId);
-
-  const handleMessage = (newMessage: any) => {
-    const incomingSenderId = newMessage.senderId?._id || newMessage.senderId;
-
-    if (incomingSenderId === user._id) return;
-
-    setLiveMessages((prev) => [
-      ...prev,
-      {
-        id: newMessage._id,
-        text: newMessage.content,
-        time: new Date(newMessage.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        isMe: false, 
-        sender: incomingSenderId,
-      },
-    ]);
-  };
-
-  socket.on("receive-message", handleMessage);
-  return () => { socket.off("receive-message", handleMessage); };
-}, [chatId, user?._id]); // Add user._id to dependency array
-
+  // 1. Fetch Chat Metadata (Participants, Group Name, etc.)
   const { data: chatData, isLoading: isChatLoading } = useQuery<Chat>({
     queryKey: ["chatData", chatId],
     queryFn: () => getChat(chatId!),
     enabled: !!chatId,
   });
 
-  const { data: messages, isLoading: isMessagesLoading } = useQuery<
-    FormattedMessage[]
-  >({
+  // 2. Fetch Message History
+  const { data: messages, isLoading: isMessagesLoading } = useQuery<FormattedMessage[]>({
     queryKey: ["messages", chatId],
     queryFn: () => getChatMessages(chatId!),
     enabled: !!chatId,
     refetchOnWindowFocus: false,
   });
 
-  const getChatDetails = () => {
-    if (!chatData) return { name: "Chat", initial: "C" };
-    if (chatData.type === "personal") {
-      const name = chatData.participants?.[1]?.fullName || "User";
-      return { name, initial: name.charAt(0).toUpperCase() };
-    }
-    const groupName = (chatData as any).groupName || "Group";
-    return { name: groupName, initial: groupName.charAt(0).toUpperCase() };
-  };
+  // 3. Clear live messages when switching chats to prevent "flicker"
+  useEffect(() => {
+    setLiveMessages([]);
+  }, [chatId]);
 
-  const { name, initial } = getChatDetails();
+  // 4. Socket Listeners
+  useEffect(() => {
+    if (!chatId || !user) return;
 
+    socket.emit("join-chat", chatId);
+
+    const handleMessage = (newMessage: any) => {
+      const incomingSenderId = newMessage.senderId?._id || newMessage.senderId;
+      if (incomingSenderId === user._id) return;
+
+      setLiveMessages((prev) => [
+        ...prev,
+        {
+          id: newMessage._id,
+          text: newMessage.content,
+          time: new Date(newMessage.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          isMe: false,
+          sender: incomingSenderId,
+        },
+      ]);
+    };
+
+    socket.on("receive-message", handleMessage);
+    return () => {
+      socket.off("receive-message", handleMessage);
+    };
+  }, [chatId, user?._id]);
+
+  // 5. Combine data and Handle Auto-scroll
   const allMessages = [...(messages || []), ...liveMessages];
 
-const handleSendMessage = () => {
-  if (!text.trim() || !chatId || !user) return;
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [allMessages]);
 
-  socket.emit("send-message", {
-    conversationId: chatId,
-    content: text,
-    type: "text",
-  });
-
-  setLiveMessages((prev) => [
-    ...prev,
-    {
-      id: Date.now().toString(), // Temp ID
-      text: text,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      isMe: true,
-      sender: user._id, 
-    },
-  ]);
-  setText("");
-};
-
+  // 6. Early Return for "No Chat Selected"
   if (!chatId) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-background text-muted-foreground">
-        <p className="text-lg font-medium">Select a chat to start messaging</p>
+      <div className="flex-1 flex flex-col items-center justify-center bg-background p-8 text-center">
+        <div className="relative mb-6">
+          <div className="absolute -inset-1 rounded-full bg-primary/20 blur-xl animate-pulse"></div>
+          <div className="relative bg-secondary rounded-full p-6">
+            <MessageSquarePlus className="h-12 w-12 text-primary" />
+          </div>
+        </div>
+        <h2 className="text-2xl font-bold tracking-tight mb-2">Your messages will appear here</h2>
+        <p className="text-muted-foreground max-w-[280px] text-sm mb-6">
+          Select a conversation from the sidebar or start a new chat to begin connecting with others.
+        </p>
       </div>
     );
   }
 
+  // 7. Helper Logic for Header
+  const getChatDetails = () => {
+    if (!chatData || !user) return { name: "Chat", initial: "C", status: "offline" };
+
+    if (chatData.type === "personal") {
+      const partner = chatData.participants?.find((p: any) => p._id !== user._id);
+      return {
+        name: partner?.fullName || "User",
+        initial: partner?.fullName?.charAt(0).toUpperCase() || "U",
+        status: partner?.status || "offline",
+      };
+    }
+    return { name: chatData.groupName, initial: "G", status: "online" };
+  };
+
+  const { name, initial, status } = getChatDetails();
+
+  const handleSendMessage = () => {
+    if (!text.trim() || !chatId || !user) return;
+
+    socket.emit("send-message", {
+      conversationId: chatId,
+      content: text,
+      type: "text",
+    });
+
+    setLiveMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        text: text,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        isMe: true,
+        sender: user._id,
+      },
+    ]);
+    setText("");
+  };
+
   if (isChatLoading) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-background gap-3">
-        <div className="flex flex-col items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">
-            Loading conversation...
-          </p>
-        </div>
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">Loading conversation...</p>
       </div>
     );
   }
@@ -127,35 +152,33 @@ const handleSendMessage = () => {
         <div className="flex items-center gap-3">
           <div className="relative">
             <Avatar className="h-10 w-10 border">
-              <AvatarImage src="" />
-              <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                {initial}
-              </AvatarFallback>
+              <AvatarFallback>{initial}</AvatarFallback>
             </Avatar>
-            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></span>
+            {status === "online" && (
+              <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></span>
+            )}
           </div>
           <div>
             <h2 className="text-sm font-semibold">{name}</h2>
-            <p className="text-xs text-green-500">Online</p>
+            <p className={`text-xs ${status === "online" ? "text-green-500" : "text-muted-foreground"}`}>
+              {status === "online" ? "Online" : "Offline"}
+            </p>
           </div>
         </div>
       </header>
 
       {/* Messages Area */}
       <ScrollArea className="flex-1 p-4 relative">
-        {/* 3. Centered "Messages Only" loading state */}
         {isMessagesLoading ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">
-                Fetching messages...
-              </span>
+              <span className="text-xs text-muted-foreground">Fetching messages...</span>
             </div>
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            {allMessages?.map((msg, idx) => (
+            {allMessages.map((msg, idx) => (
               <div
                 key={msg.id || idx}
                 className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}
@@ -178,15 +201,13 @@ const handleSendMessage = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-1 px-1">
-                  <span className="text-[10px] text-muted-foreground font-medium">
-                    {msg.time}
-                  </span>
-                  {msg.isMe && (
-                    <span className="text-green-500 text-[10px]">✓✓</span>
-                  )}
+                  <span className="text-[10px] text-muted-foreground font-medium">{msg.time}</span>
+                  {msg.isMe && <span className="text-green-500 text-[10px]">✓✓</span>}
                 </div>
               </div>
             ))}
+            {/* Scroll Anchor */}
+            <div ref={scrollRef} className="h-0 w-0" />
           </div>
         )}
       </ScrollArea>
@@ -206,11 +227,7 @@ const handleSendMessage = () => {
             placeholder="Enter message..."
             className="border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
           />
-          <Button
-            size="sm"
-            className="ml-2 h-9 px-4"
-            onClick={handleSendMessage} // Move your logic to a named function
-          >
+          <Button size="sm" className="ml-2 h-9 px-4" onClick={handleSendMessage}>
             Send
           </Button>
         </div>

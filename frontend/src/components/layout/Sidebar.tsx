@@ -1,13 +1,17 @@
 import React, { useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { Link, useParams } from "react-router-dom";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useInView } from "react-intersection-observer";
 import { formatDistanceToNow } from "date-fns";
 import { PlusIcon, Search, Check, Users, Pen } from "lucide-react";
 
 import { Button } from "../ui/button";
 import { Card, CardTitle } from "../ui/card";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "../ui/input-group";
 import { ScrollArea } from "../ui/scroll-area";
 import { Separator } from "../ui/separator";
 import { Avatar, AvatarFallback } from "../ui/avatar";
@@ -22,11 +26,13 @@ import {
 import { ChatCreateModal } from "../personalChatCreateModal";
 import { GroupCreateModal } from "../groupChatCreateModal";
 import { getUsersChat } from "@/api/chats";
+import { useAuth } from "@/context/AuthContext";
+import socket from "@/lib/socket";
 
-// --- Types ---
 export interface Participant {
   _id: string;
   fullName: string;
+  status?: "online" | "offline";
 }
 
 export interface LastMessage {
@@ -70,6 +76,9 @@ interface ChatApiResponse {
 
 // --- Component ---
 const Sidebar = () => {
+  const queryClient = useQueryClient();
+  const { chatId: activeChatId } = useParams();
+  const { user } = useAuth();
   const { ref, inView } = useInView();
 
   const {
@@ -88,6 +97,33 @@ const Sidebar = () => {
       return page < totalPages ? page + 1 : undefined;
     },
   });
+
+  // Inside Sidebar component
+  useEffect(() => {
+    socket.on("user-status-changed", ({ userId, status }) => {
+      // We update the Query Client cache so the UI reflects the change immediately
+      queryClient.setQueryData(["chats"], (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any) => ({
+            ...page,
+            data: page.data.map((chat: Chat) => {
+              // Update the status of the specific participant in the chat object
+              const updatedParticipants = chat.participants.map((p) =>
+                p._id === userId ? { ...p, status } : p,
+              );
+              return { ...chat, participants: updatedParticipants };
+            }),
+          })),
+        };
+      });
+    });
+
+    return () => {
+      socket.off("user-status-changed");
+    };
+  }, []);
 
   // Trigger load more when scrolling to bottom
   useEffect(() => {
@@ -113,12 +149,18 @@ const Sidebar = () => {
           <DropdownMenuContent className="border-none w-48" align="end">
             <DropdownMenuGroup className="flex flex-col gap-1">
               <ChatCreateModal>
-                <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()}>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onSelect={(e) => e.preventDefault()}
+                >
                   <Pen className="mr-2 h-4 w-4" /> New Chat
                 </DropdownMenuItem>
               </ChatCreateModal>
               <GroupCreateModal>
-                <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()}>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onSelect={(e) => e.preventDefault()}
+                >
                   <Users className="mr-2 h-4 w-4" /> Group Chat
                 </DropdownMenuItem>
               </GroupCreateModal>
@@ -144,33 +186,68 @@ const Sidebar = () => {
       <ScrollArea className="flex-1 w-full rounded-none">
         <div className="flex flex-col">
           {isLoading && (
-            <div className="p-4 text-center text-sm text-muted-foreground">Loading chats...</div>
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              Loading chats...
+            </div>
           )}
 
           {error && (
-            <div className="p-4 text-center text-sm text-red-500">Error loading chats</div>
+            <div className="p-4 text-center text-sm text-red-500">
+              Error loading chats
+            </div>
           )}
 
           {chats.map((chat) => {
-            const relativeTime = formatDistanceToNow(new Date(chat.updatedAt), { addSuffix: true });
-            
-            // Logic to find display name (assuming participants[0] is usually the other person)
-            // In a real app, filter by !isMe
-            const displayName = chat.type === "group" 
-                ? chat.groupName 
-                : chat.participants[1]?.fullName || "Chat";
+            const relativeTime = formatDistanceToNow(new Date(chat.updatedAt), {
+              addSuffix: true,
+            });
+
+            // --- NEW LOGIC START ---
+            let displayName = "Chat";
+
+            if (chat.type === "group") {
+              displayName = chat.groupName;
+            } else {
+              const partner = chat.participants.find(
+                (p) => p._id !== user?._id,
+              );
+              displayName = partner?.fullName || "User";
+            }
+            const partner =
+              chat.type === "personal"
+                ? chat.participants.find((p) => p._id !== user?._id)
+                : null;
+            const isOnline =
+              chat.type === "personal" && partner?.status === "online";
 
             return (
               <React.Fragment key={chat._id}>
                 <Link to={`/chats/${chat._id}`}>
-                  <div className="flex items-center gap-4 px-4 py-4 hover:bg-secondary/80 transition-colors cursor-pointer group">
-                    <Avatar className="h-12 w-12 shrink-0 border">
-                      <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
+                  <div
+                    className={`flex items-center gap-4 px-4 py-4 transition-colors cursor-pointer group ${
+                      activeChatId === chat._id
+                        ? "bg-secondary" // Active style
+                        : "hover:bg-secondary/80" // Hover style
+                    }`}
+                  >
+                    <div className="relative">
+                      <Avatar className="h-12 w-12 shrink-0 border">
+                        <AvatarFallback>
+                          {displayName.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      {/* 🟢 Show green dot only if user is online and it's a personal chat */}
+                      {isOnline && (
+                        <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-background rounded-full"></span>
+                      )}
+                    </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline mb-1">
-                        <h3 className="font-semibold text-sm truncate">{displayName}</h3>
+                        <h3 className="font-semibold text-sm truncate">
+                          {displayName}
+                        </h3>
                         <span className="text-[11px] text-muted-foreground whitespace-nowrap ml-2">
                           {relativeTime}
                         </span>
@@ -195,11 +272,17 @@ const Sidebar = () => {
           {/* Sentinel element for infinite scroll */}
           <div ref={ref} className="p-6 flex justify-center items-center">
             {isFetchingNextPage ? (
-              <div className="animate-pulse text-xs text-muted-foreground">Loading more...</div>
+              <div className="animate-pulse text-xs text-muted-foreground">
+                Loading more...
+              </div>
             ) : hasNextPage ? (
-              <div className="h-1" /> 
+              <div className="h-1" />
             ) : (
-              chats.length > 0 && <span className="text-xs text-muted-foreground">End of conversations</span>
+              chats.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  End of conversations
+                </span>
+              )
             )}
           </div>
         </div>

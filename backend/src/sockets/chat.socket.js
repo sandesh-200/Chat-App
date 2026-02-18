@@ -32,6 +32,11 @@ export const registerChatSocket = (io)=>{
     io.on("connection",async (socket)=>{
         await userModel.findByIdAndUpdate(socket.user._id, { status: "online" });
 
+        io.emit("user-status-changed", { 
+        userId: socket.user._id, 
+        status: "online" 
+    });
+
 
     socket.on("setup",(userId)=>{
         socket.join(userId)
@@ -69,6 +74,10 @@ socket.on("send-message", async (data) => {
     socket.on("disconnect",async ()=>{
         console.log("User disconnected:",socket.user.fullName)
         await userModel.findByIdAndUpdate(socket.user._id, { status: "offline" });
+        io.emit("user-status-changed", { 
+            userId: socket.user._id, 
+            status: "offline" 
+        });
     })
         })
 }
