@@ -97,7 +97,7 @@ export const getUserChats = async (req, res) => {
         .limit(limit)
         .populate({
           path:"participants",
-          select:"fullName"
+          select:"fullName status"
         })
         .populate({
           path: "lastMessage",
@@ -139,7 +139,7 @@ export async function getSingleChat(req, res) {
     })
       .populate({
         path: "participants",
-        select: "fullName",
+        select: "fullName status",
       })
       .populate({
         path: "groupAdmin",
