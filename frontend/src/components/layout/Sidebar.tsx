@@ -136,7 +136,8 @@ const Sidebar = () => {
   const chats = data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
-    <Card className="w-full md:w-[30%] h-screen rounded-none flex flex-col border-none shadow-none">
+    // <Card className="w-full md:w-[30%] h-screen rounded-none flex flex-col border-none shadow-none">
+    <Card className="w-full h-full rounded-none flex flex-col border-none shadow-none">
       {/* Header */}
       <div className="flex justify-between items-center px-4 py-3">
         <CardTitle className="text-3xl font-bold">Chats</CardTitle>
