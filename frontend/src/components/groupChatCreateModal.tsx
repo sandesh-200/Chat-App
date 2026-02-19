@@ -119,7 +119,7 @@ const handleCreate = () => {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
 
-      <DialogContent className="sm:max-w-sm flex flex-col gap-4 border-none">
+      <DialogContent className="sm:max-w-sm flex flex-col h-full md:h-[70%] gap-4 border-none">
         <DialogHeader>
           <DialogTitle className="text-muted-foreground flex items-center gap-2">
             <Users className="h-4 w-4" />

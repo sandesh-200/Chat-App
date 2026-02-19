@@ -66,7 +66,7 @@ export function ChatCreateModal({ children }: { children: React.ReactNode }) {
         <div onClick={() => setIsOpen(true)}>{children}</div>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-sm flex flex-col gap-4 border-none">
+      <DialogContent className="sm:max-w-sm flex flex-col h-full md:h-[70%] gap-4 border-none">
         <DialogHeader>
           <DialogTitle className="text-muted-foreground">Select a friend to chat</DialogTitle>
           <DialogDescription className="text-muted-foreground">

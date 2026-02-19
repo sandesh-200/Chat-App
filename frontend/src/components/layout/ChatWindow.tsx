@@ -1,9 +1,9 @@
-import { MoreHorizontal, Loader2, MessageSquarePlus } from "lucide-react";
+import { MoreHorizontal, Loader2, MessageSquarePlus, ArrowLeft } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getChat } from "@/api/chats";
 import type { Chat } from "./Sidebar";
@@ -79,10 +79,10 @@ const ChatWindow = () => {
     }
   }, [allMessages]);
 
-  // 6. Early Return for "No Chat Selected"
+
   if (!chatId) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-background p-8 text-center">
+      <div className="flex-1 md:flex flex-col hidden items-center justify-center bg-background p-8 text-center">
         <div className="relative mb-6">
           <div className="absolute -inset-1 rounded-full bg-primary/20 blur-xl animate-pulse"></div>
           <div className="relative bg-secondary rounded-full p-6">
@@ -150,6 +150,11 @@ const ChatWindow = () => {
       {/* Header */}
       <header className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center gap-3">
+          <Link to="/" className="md:hidden">
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+          </Link>
           <div className="relative">
             <Avatar className="h-10 w-10 border">
               <AvatarFallback>{initial}</AvatarFallback>

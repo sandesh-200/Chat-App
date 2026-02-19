@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useParams } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect } from "react";
@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 const AppLayout = () => {
   const { user, isLoading, isError } = useAuth();
   const navigate = useNavigate();
+  const {chatId} = useParams()
 
   useEffect(() => {
     if (!isLoading && (!user || isError)) {
@@ -28,11 +29,13 @@ const AppLayout = () => {
   if (!user) return null;
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
-      <Sidebar /> 
+    <div className={`flex h-screen w-full overflow-hidden bg-background`}>
+      <div className={`${chatId ? "hidden" : "block"} w-full md:flex md:w-[30%] border-r`}>
+        <Sidebar />
+      </div>
 
-      <main className="flex-1 flex flex-col h-full min-w-0">
-        <Outlet context={{ user }} /> 
+     <main className={`${chatId ? "block" : "hidden"} md:block flex-1 h-full min-w-0`}>
+        <Outlet context={{ user }} />
       </main>
     </div>
   );
