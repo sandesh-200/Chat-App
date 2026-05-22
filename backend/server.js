@@ -18,9 +18,18 @@ const io = new Server(server, {
 registerChatSocket(io);
 
 export { io };
+const PORT = process.env.PORT || 3000
 
-connectDB();
+const startServer = async () => {
+  try {
+    await connectDB();
 
-server.listen(3000, () => {
-  console.log("Server listening on port 3000");
-});
+    server.listen(PORT, () => {
+      console.log(`Server listening on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to connect DB:", error);
+  }
+};
+
+startServer();
