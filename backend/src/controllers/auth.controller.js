@@ -1,5 +1,5 @@
 import z from "zod";
-import { userRegisterSchema,userLoginSchema } from "../validators/auth.validator.js";
+import { userRegisterSchema, userLoginSchema } from "../validators/auth.validator.js";
 import userModel from '../models/user.model.js'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
@@ -8,12 +8,12 @@ import jwt from 'jsonwebtoken'
 export async function registerUser(req, res) {
   const result = userRegisterSchema.safeParse(req.body);
 
-if (!result.success) {
-  return res.status(400).json({
-    message: "Validation failed",
-    errors: z.flattenError(result.error).fieldErrors,
-  });
-}
+  if (!result.success) {
+    return res.status(400).json({
+      message: "Validation failed",
+      errors: z.flattenError(result.error).fieldErrors,
+    });
+  }
 
 
   const { fullName, email, password } = result.data;
@@ -39,7 +39,12 @@ if (!result.success) {
       process.env.JWT_SECRET,
     );
 
-    res.cookie("token", token);
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
 
     res.status(201).json({
       message: "User registered successfully",
@@ -95,7 +100,13 @@ export async function loginUser(req, res) {
       process.env.JWT_SECRET,
     );
 
-    res.cookie("token", token);
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
 
     return res.status(200).json({
       message: "User logged in successfully",
