@@ -2,6 +2,7 @@ import chatModel from "../models/chat.model.js";
 import Message from "../models/message.model.js";
 import mongoose from "mongoose";
 import { getPagination } from "../utils/getPagination.js";
+import Chat from "../models/chat.model.js";
 
 export async function createPersonalChat(req, res) {
   try {
