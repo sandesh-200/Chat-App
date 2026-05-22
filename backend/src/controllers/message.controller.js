@@ -13,11 +13,14 @@ export const getChatMessages = async (req, res) => {
       .populate("senderId", "fullName avatar");
 
     const formattedMessages = rawMessages.reverse().map((msg) => ({
-      id: msg._id,
-      sender: msg.senderId.fullName,
-      text: msg.content,
-      time: format(new Date(msg.createdAt), "hh:mm aa"),
-      isMe: msg.senderId._id.toString() === loggedInUserId.toString(),
+      _id: msg._id,
+      content: msg.content,
+      createdAt: msg.createdAt,
+      senderId: {
+        _id: msg.senderId._id,
+        fullName: msg.senderId.fullName,
+        avatar: msg.senderId.avatar,
+      },
     }));
 
     res.status(200).json(formattedMessages);

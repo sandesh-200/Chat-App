@@ -45,12 +45,11 @@ export interface ChatApiResponse {
 
 export interface FormattedMessage {
   id: string;
-  sender:
-    | {
-        _id: string;
-        fullName: string;
-      }
-    | string; // Allow both for flexibility
+  sender: {
+    _id: string;
+    fullName: string;
+  };
+
   text: string;
   time: string;
   isMe: boolean;
@@ -60,6 +59,7 @@ export interface MessageAreaProps {
   messages: FormattedMessage[];
   isLoading: boolean;
   onDeleteMessage: (messageId: string) => void;
+  isGroupChat?: boolean;
 }
 
 export interface CreateGroupPayload {

@@ -53,8 +53,6 @@ CONVERSATION:
 ${formattedConversation}
 `;
 
-    console.log(prompt);
-
     const completion = await generateReply(prompt);
 
     const suggestions = completion

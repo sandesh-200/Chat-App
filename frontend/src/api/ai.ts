@@ -1,8 +1,6 @@
 import api from "./axios_config";
 
-export interface AISuggestionResponse {
-  suggestions: string[];
-}
+
 
 export const getAISuggestions = async (conversationId: string) => {
   try {
