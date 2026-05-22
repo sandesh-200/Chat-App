@@ -13,19 +13,29 @@ const MessageArea = ({
   messages,
   isLoading,
   onDeleteMessage,
+  isGroupChat,
 }: MessageAreaProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. Auto-scroll logic
+  const getInitials = (name?: string) => {
+    if (!name || name === "Unknown User") return "U";
+
+    const parts = name.trim().split(" ");
+    if (parts.length === 1) return parts[0][0].toUpperCase();
+
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  };
+
   useEffect(() => {
-    // Timeout ensures the DOM has finished painting the new message
-    // before we calculate the scroll position.
     const timer = setTimeout(() => {
-      scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      scrollRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [messages]); // Fires whenever the messages array reference changes
+  }, [messages]);
 
   return (
     <ScrollArea className="flex-1 p-4">
@@ -43,12 +53,20 @@ const MessageArea = ({
           {messages.map((msg, idx) => (
             <div
               key={msg.id || idx}
-              className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}
+              className={`flex flex-col ${
+                msg.isMe ? "items-end" : "items-start"
+              }`}
             >
-              <div className="flex items-center gap-2 mb-1 group">
-                {!msg.isMe && (
-                  <MoreHorizontal className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity" />
+              {/* MESSAGE ROW */}
+              <div className="flex items-end gap-2 group">
+                {/* AVATAR (GROUP ONLY, OTHER USERS ONLY) */}
+                {isGroupChat && !msg.isMe && (
+                  <div className="h-8 w-8 rounded-full bg-primary/10 border flex items-center justify-center text-[11px] font-semibold shrink-0">
+                    {getInitials(msg.sender.fullName)}
+                  </div>
                 )}
+
+                {/* MESSAGE BUBBLE */}
                 <ContextMenu>
                   <ContextMenuTrigger>
                     <div
@@ -87,11 +105,13 @@ const MessageArea = ({
                     )}
                   </ContextMenuContent>
                 </ContextMenu>
-                {msg.isMe && (
-                  <MoreHorizontal className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity" />
-                )}
+
+                {/* 3-dot menu (UI only) */}
+                <MoreHorizontal className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity" />
               </div>
-              <div className="flex items-center gap-1 px-1">
+
+              {/* TIME + READ RECEIPT */}
+              <div className="flex items-center gap-1 px-1 mt-1">
                 <span className="text-[10px] text-muted-foreground font-medium">
                   {msg.time}
                 </span>
@@ -101,7 +121,7 @@ const MessageArea = ({
               </div>
             </div>
           ))}
-          {/* 2. The Anchor: Bottom of this div is the "end" of the chat */}
+
           <div ref={scrollRef} />
         </div>
       )}

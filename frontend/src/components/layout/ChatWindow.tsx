@@ -36,9 +36,7 @@ const ChatWindow = () => {
   } = useAISuggestions(chatId);
 
   // Combine historical and live messages
-  const allMessages = [...(messages || []), ...liveMessages].filter(
-    (msg, index, self) => index === self.findIndex((m) => m.id === msg.id),
-  );
+  const allMessages = [...(messages || []), ...liveMessages];
 
   // Helper to resolve Header display info
   const getChatDetails = () => {
@@ -115,6 +113,7 @@ const ChatWindow = () => {
         messages={allMessages}
         isLoading={isLoading}
         onDeleteMessage={handleDeleteMessage}
+        isGroupChat={chatData?.type === "group"}
       />
 
       <ChatInput

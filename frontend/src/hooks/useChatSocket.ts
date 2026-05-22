@@ -17,21 +17,29 @@ export const useChatSocket = (chatId?: string, user?: any) => {
     socket.emit("join-chat", chatId);
 
     const handleMessage = (newMessage: any) => {
-      const incomingSenderId = newMessage.senderId?._id || newMessage.senderId;
+      const sender = newMessage.sender;
 
-      setLiveMessages((prev) => [
-        ...prev,
-        {
-          id: newMessage._id,
-          text: newMessage.content,
-          time: new Date(newMessage.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          isMe: incomingSenderId === user._id,
-          sender: incomingSenderId,
-        },
-      ]);
+      setLiveMessages((prev) => {
+        const exists = prev.some((m) => m.id === newMessage._id);
+        if (exists) return prev;
+
+        return [
+          ...prev,
+          {
+            id: newMessage._id,
+            text: newMessage.content,
+            time: new Date(newMessage.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            isMe: sender?._id === user._id,
+            sender: {
+              _id: sender?._id || "unknown",
+              fullName: sender?.fullName || "Unknown User",
+            },
+          },
+        ];
+      });
     };
 
     socket.on("receive-message", handleMessage);
@@ -42,11 +50,14 @@ export const useChatSocket = (chatId?: string, user?: any) => {
 
   const sendMessage = (text: string) => {
     if (!text.trim() || !chatId) return;
+
+    // Emit directly; the server will broadcast it back to us via "receive-message"
     socket.emit("send-message", {
       conversationId: chatId,
       content: text,
       type: "text",
     });
+
     setText("");
   };
 

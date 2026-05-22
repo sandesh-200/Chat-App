@@ -17,7 +17,6 @@ export const deleteMessage = async (messageId: string) => {
   try {
     const { data } = await api.delete(`/messages/${messageId}`);
     return data;
-    console.log(data);
   } catch (error) {
     console.error("Error fetching chat messages", error);
     throw error;
