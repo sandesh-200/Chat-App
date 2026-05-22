@@ -1,25 +1,5 @@
+import type { FormattedMessage } from "@/types/chat";
 import api from "./axios_config";
-
-// export interface FormattedMessage {
-//   id: string;
-//   sender: string;
-//   text: string;
-//   time: string;
-//   isMe: boolean;
-// }
-
-export interface FormattedMessage {
-  id: string;
-  sender:
-    | {
-        _id: string;
-        fullName: string;
-      }
-    | string; // Allow both for flexibility
-  text: string;
-  time: string;
-  isMe: boolean;
-}
 
 export const getChatMessages = async (
   chatId: string,
@@ -27,6 +7,17 @@ export const getChatMessages = async (
   try {
     const response = await api.get(`/messages/${chatId}`);
     return response.data;
+  } catch (error) {
+    console.error("Error fetching chat messages", error);
+    throw error;
+  }
+};
+
+export const deleteMessage = async (messageId: string) => {
+  try {
+    const { data } = await api.delete(`/messages/${messageId}`);
+    return data;
+    console.log(data);
   } catch (error) {
     console.error("Error fetching chat messages", error);
     throw error;

@@ -1,4 +1,5 @@
 import chatModel from "../models/chat.model.js";
+import Message from "../models/message.model.js";
 import mongoose from "mongoose";
 import { getPagination } from "../utils/getPagination.js";
 
@@ -20,14 +21,13 @@ export async function createPersonalChat(req, res) {
     let existingChat = await chatModel.findOne({
       type: "personal",
       participants: { $all: [loggedInUserId, userId] },
-      
     });
 
     if (existingChat) {
       return res.status(200).json({
         message: "Personal chat already exists",
         chat: existingChat,
-        isNew: false
+        isNew: false,
       });
     }
 
@@ -39,7 +39,7 @@ export async function createPersonalChat(req, res) {
     res.status(201).json({
       message: "Personal chat created successfully",
       chat: newChat,
-      isNew: true
+      isNew: true,
     });
   } catch (error) {
     return res.status(500).json({
@@ -51,20 +51,26 @@ export async function createPersonalChat(req, res) {
 
 export async function createGroupChat(req, res) {
   try {
-    const {groupName, participants} = req.body;
+    const { groupName, participants } = req.body;
     const creatorId = req.user._id;
 
     if (!groupName || !participants || !Array.isArray(participants)) {
-      return res.status(400).json({ message: "Group name and participant IDs are required" });
+      return res
+        .status(400)
+        .json({ message: "Group name and participant IDs are required" });
     }
 
-  const uniqueParticipants = [...new Set(participants.filter(id => id !== creatorId.toString()))];
+    const uniqueParticipants = [
+      ...new Set(participants.filter((id) => id !== creatorId.toString())),
+    ];
 
-  if (uniqueParticipants.length < 2) {
-      return res.status(400).json({ message: "A group must have at least 3 members (including you)" });
+    if (uniqueParticipants.length < 2) {
+      return res.status(400).json({
+        message: "A group must have at least 3 members (including you)",
+      });
     }
 
-     const newGroup = await chatModel.create({
+    const newGroup = await chatModel.create({
       type: "group",
       groupName,
       participants: [creatorId, ...uniqueParticipants],
@@ -75,15 +81,13 @@ export async function createGroupChat(req, res) {
       message: "Group chat created successfully",
       chat: newGroup,
     });
-    
-
   } catch (error) {
     return res.status(500).json({
       message: "Error creating group chat",
       error: error.message,
     });
-  }}
-
+  }
+}
 
 export const getUserChats = async (req, res) => {
   try {
@@ -91,13 +95,14 @@ export const getUserChats = async (req, res) => {
     const userId = req.user._id;
 
     const [conversations, total] = await Promise.all([
-      chatModel.find({ participants: userId })
+      chatModel
+        .find({ participants: userId })
         .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limit)
         .populate({
-          path:"participants",
-          select:"fullName status"
+          path: "participants",
+          select: "fullName status",
         })
         .populate({
           path: "lastMessage",
@@ -105,7 +110,7 @@ export const getUserChats = async (req, res) => {
         })
         .lean(),
 
-      chatModel.countDocuments({ participants: userId })
+      chatModel.countDocuments({ participants: userId }),
     ]);
 
     res.json({
@@ -114,16 +119,14 @@ export const getUserChats = async (req, res) => {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
-
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).json({ message: "Server error" });
   }
 };
-
 
 export async function getSingleChat(req, res) {
   try {
@@ -133,10 +136,11 @@ export async function getSingleChat(req, res) {
       return res.status(400).json({ message: "Invalid chatId" });
     }
 
-    const chat = await chatModel.findOne({
-      _id: chatId,
-      participants: userId,
-    })
+    const chat = await chatModel
+      .findOne({
+        _id: chatId,
+        participants: userId,
+      })
       .populate({
         path: "participants",
         select: "fullName status",
@@ -156,11 +160,59 @@ export async function getSingleChat(req, res) {
     res.status(200).json({
       message: "Chat fetched successfully",
       chat,
-    })
+    });
   } catch (error) {
     return res.status(500).json({
       message: "Error fetching single chat",
       error: error.message,
+    });
+  }
+}
+
+export async function deleteConversation(req, res) {
+  try {
+    const { chatId } = req.params;
+    const currentUserId = req.user._id;
+
+    const chat = await Chat.findById(chatId);
+
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        message: "Chat not found",
+      });
+    }
+
+    // Check user belongs to conversation
+    const isParticipant = chat.participants.some(
+      (p) => p.toString() === currentUserId.toString(),
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    // Delete all messages
+    await Message.deleteMany({
+      conversationId: chatId,
+    });
+
+    // Delete chat
+    await Chat.findByIdAndDelete(chatId);
+
+    return res.json({
+      success: true,
+      message: "Conversation deleted",
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete conversation",
     });
   }
 }

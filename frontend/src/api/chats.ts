@@ -1,4 +1,4 @@
-import type { Chat } from "@/components/layout/Sidebar";
+import type { Chat, CreateGroupPayload } from "@/types/chat";
 import api from "./axios_config";
 
 export const getUsersChat = async (page: number = 1) => {
@@ -44,12 +44,17 @@ export async function createPersonalChat(userId: string) {
   }
 }
 
-export interface CreateGroupPayload {
-  groupName: string;
-  participants: string[];
-}
-
 export const createGroupChat = async (payload: CreateGroupPayload) => {
   const response = await api.post("/chats/group", payload);
   return response.data;
+};
+
+export const deleteConversation = async (chatId: string) => {
+  try {
+    const { data } = await api.delete(`/chats/${chatId}`);
+    return data;
+  } catch (error: any) {
+    console.error("Error deleting conversation:", error);
+    throw error;
+  }
 };
