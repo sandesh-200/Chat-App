@@ -42,7 +42,7 @@ export const useChatSocket = (chatId?: string, user?: any) => {
       });
     };
 
-    socket.on("receive-message", handleMessage);
+    socket.on("receive-message", handleMessage);  
     return () => {
       socket.off("receive-message", handleMessage);
     };
@@ -51,7 +51,6 @@ export const useChatSocket = (chatId?: string, user?: any) => {
   const sendMessage = (text: string) => {
     if (!text.trim() || !chatId) return;
 
-    // Emit directly; the server will broadcast it back to us via "receive-message"
     socket.emit("send-message", {
       conversationId: chatId,
       content: text,

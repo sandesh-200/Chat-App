@@ -7,12 +7,19 @@ import userModel from "../models/user.model.js";
 export const registerChatSocket = (io) => {
   io.use(async (socket, next) => {
     try {
+      let token = null;
+
+      // 1. Try cookie first (desktop/same-site browsers)
       const cookies = socket.handshake.headers.cookie;
-      if (!cookies) {
-        return next(new Error("Authentication error: No cookies found"));
+      if (cookies) {
+        const parsedCookies = cookie.parse(cookies);
+        token = parsedCookies.token || null;
       }
-      const parsedCookies = cookie.parse(cookies);
-      const token = parsedCookies.token;
+
+      // 2. Fallback to handshake auth token (mobile/cross-site browsers where cookies are blocked)
+      if (!token && socket.handshake.auth?.token) {
+        token = socket.handshake.auth.token;
+      }
 
       if (!token) return next(new Error("Authentication error: Token missing"));
 
