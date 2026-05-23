@@ -23,3 +23,15 @@ export const loginUser = async (data: { email: string; password: string }) => {
     throw error;
   }
 };
+
+export const logoutUser = async () => {
+  try {
+    const response = await api.post("/auth/user/logout");
+    localStorage.removeItem("token");
+    return response.data;
+  } catch (error) {
+    console.error("Error logging out user:", error);
+    localStorage.removeItem("token");
+    throw error;
+  }
+};

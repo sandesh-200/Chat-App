@@ -127,3 +127,25 @@ export async function loginUser(req, res) {
     });
   }
 }
+
+export async function logoutUser(req, res) {
+  try {
+    const isProduction = process.env.NODE_ENV === "production";
+
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+    });
+
+    return res.status(200).json({
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to log out",
+      error: error.message,
+    });
+  }
+}
+
