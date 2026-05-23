@@ -39,7 +39,10 @@ export default function LoginForm() {
 
   const onSubmit = async (data: LoginInput) => {
     try {
-      await loginUser(data);
+      const response = await loginUser(data);
+      if (response && response.token) {
+        localStorage.setItem("token", response.token);
+      }
       await queryClient.invalidateQueries({ queryKey: ["authUser"] });
 
       toast.success("Login successful!", {
@@ -48,7 +51,7 @@ export default function LoginForm() {
       });
       navigate('/')
     } catch (error: any) {
-      console.error(error.response.data.message)
+      console.error(error.response?.data?.message)
       toast.error(error.response?.data?.message || "Something went wrong");
     }
   };

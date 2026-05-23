@@ -41,7 +41,10 @@ export default function SignupForm() {
 
   const onSubmit = async (data: SignUpInput) => {
     try {
-      await registerUser(data);
+      const response = await registerUser(data);
+      if (response && response.token) {
+        localStorage.setItem("token", response.token);
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["authUser"] });
 
