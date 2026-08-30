@@ -107,7 +107,7 @@ export const getUserChats = async (req, res) => {
         })
         .populate({
           path: "lastMessage",
-          select: "content type createdAt senderId",
+          select: "content type createdAt senderId readBy",
         })
         .lean(),
 
@@ -152,7 +152,7 @@ export async function getSingleChat(req, res) {
       })
       .populate({
         path: "lastMessage",
-        select: "content type createdAt senderId",
+        select: "content type createdAt senderId readBy",
       })
       .lean();
     if (!chat) {

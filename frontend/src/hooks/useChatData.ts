@@ -2,11 +2,14 @@ import { getChat } from "@/api/chats";
 import { getChatMessages } from "@/api/messages";
 import type { FormattedMessage } from "@/types/chat";
 import type { Chat } from "@/types/chat";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
+import { useEffect } from "react";
+import socket from "@/lib/socket";
 
 export const useChatData = (chatId?: string) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: chatData, isLoading: isChatLoading } = useQuery<Chat>({
     queryKey: ["chatData", chatId],
@@ -41,6 +44,24 @@ export const useChatData = (chatId?: string) => {
     enabled: !!chatId && !!user,
     refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+    if (!chatId) return;
+    const handleStatusChange = ({ userId, status }: { userId: string, status: "online" | "offline" }) => {
+      queryClient.setQueryData<Chat>(["chatData", chatId], (oldData) => {
+        if (!oldData) return oldData;
+        const updatedParticipants = oldData.participants?.map(p => 
+          p._id === userId ? { ...p, status } : p
+        );
+        return { ...oldData, participants: updatedParticipants } as Chat;
+      });
+    };
+
+    socket.on("user-status-changed", handleStatusChange);
+    return () => {
+      socket.off("user-status-changed", handleStatusChange);
+    };
+  }, [chatId, queryClient]);
 
   return {
     chatData,

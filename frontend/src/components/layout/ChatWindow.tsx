@@ -1,20 +1,75 @@
+import React, { useMemo } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, MessageSquarePlus } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { MessageSquarePlus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
-// Custom Hooks
+import { useAuth } from "@/context/AuthContext";
 import { useChatData } from "@/hooks/useChatData";
 import { useChatSocket } from "@/hooks/useChatSocket";
 import { useAISuggestions } from "@/hooks/useAISuggestions";
+import { deleteMessage } from "@/api/messages";
 
 // Modular UI Components
 import ChatHeader from "../chat_window/ChatHeader";
 import MessageArea from "../chat_window/MessageArea";
 import ChatInput from "../chat_window/ChatInput";
-import { deleteMessage } from "@/api/messages";
-import { useQueryClient } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const ChatWindow = () => {
+// --- Sub-Components ---
+
+/** Empty Workspace Placeholder when no chat is selected in params */
+const NoChatSelectedWorkspace = () => (
+  <main
+    role="main"
+    aria-label="No conversation selected"
+    className="flex-1 hidden md:flex flex-col items-center justify-center bg-background p-8 text-center select-none"
+  >
+    <div className="relative mb-5">
+      <div className="absolute -inset-2 rounded-full bg-primary/10 blur-xl animate-pulse" />
+      <div className="relative bg-muted/60 dark:bg-muted/30 border border-border/40 rounded-full p-5 shadow-2xs">
+        <MessageSquarePlus className="h-10 w-10 text-primary" />
+      </div>
+    </div>
+    <h2 className="text-xl font-semibold tracking-tight text-foreground mb-1.5">
+      Your messages will appear here
+    </h2>
+    <p className="text-muted-foreground max-w-[320px] text-xs leading-relaxed">
+      Select a conversation from the sidebar to start messaging, share files, and view history.
+    </p>
+  </main>
+);
+
+/** Preserves structural geometry during chat metadata & history fetch */
+const WorkspaceLoadingSkeleton = () => (
+  <div className="flex flex-col h-full w-full bg-background min-h-0">
+    {/* Stable Header Skeleton */}
+    <div className="h-16 px-4 border-b border-border/40 flex items-center justify-between shrink-0">
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-10 rounded-full" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-3 w-20" />
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Skeleton className="h-8 w-8 rounded-md" />
+        <Skeleton className="h-8 w-8 rounded-md" />
+      </div>
+    </div>
+
+    {/* Message Area Delegates internal skeleton loading */}
+    <MessageArea messages={[]} isLoading={true} />
+
+    {/* Stable Disabled Composer Skeleton */}
+    <div className="p-3 border-t border-border/40 shrink-0 bg-background/50">
+      <Skeleton className="h-11 w-full rounded-2xl" />
+    </div>
+  </div>
+);
+
+// --- Main ChatWindow Composition Workspace ---
+
+const ChatWindow: React.FC = () => {
   const { user } = useAuth();
   const { chatId } = useParams<{ chatId: string }>();
   const queryClient = useQueryClient();
@@ -35,100 +90,105 @@ const ChatWindow = () => {
     fetchSuggestions,
   } = useAISuggestions(chatId);
 
-  // Combine historical and live messages
-  const allMessages = [...(messages || []), ...liveMessages];
+  // Combine historical and live messages safely
+  const allMessages = useMemo(
+    () => [...(messages || []), ...liveMessages],
+    [messages, liveMessages]
+  );
 
-  // Helper to resolve Header display info
-  const getChatDetails = () => {
-    if (!chatData || !user)
-      return { name: "Chat", initial: "C", status: "offline" };
+  // Derive Chat Header Details
+  const chatDetails = useMemo(() => {
+    if (!chatData || !user) {
+      return { name: "Conversation", initial: "C", status: "offline" as const };
+    }
 
     if (chatData.type === "personal") {
       const partner = chatData.participants?.find(
-        (p: any) => p._id !== user._id,
+        (p: any) => p._id !== user._id
       );
       return {
         name: partner?.fullName || "User",
         initial: partner?.fullName?.charAt(0).toUpperCase() || "U",
-        status: partner?.status || "offline",
+        status: (partner?.status || "offline") as "online" | "offline",
       };
     }
-    return { name: chatData.groupName, initial: "G", status: "online" };
-  };
 
+    return {
+      name: chatData.groupName || "Group Chat",
+      initial: chatData.groupName?.charAt(0).toUpperCase() || "G",
+      status: "online" as const,
+    };
+  }, [chatData, user]);
+
+  // Optimized Deletion Handling
   const handleDeleteMessage = async (messageId: string) => {
     try {
       setLiveMessages((prev) => prev.filter((msg) => msg.id !== messageId));
 
       queryClient.setQueryData(["messages", chatId], (old: any[] = []) =>
-        old.filter((msg) => msg.id !== messageId),
+        old.filter((msg) => msg.id !== messageId)
       );
 
       await deleteMessage(messageId);
     } catch (error) {
-      console.log(error);
+      console.error("Failed to delete message:", error);
     }
   };
 
-  const { name, initial, status } = getChatDetails();
-  // --- Early Returns for Loading/Empty States ---
+  // --- Early Render Boundaries ---
 
   if (!chatId) {
-    return (
-      <div className="flex-1 md:flex flex-col hidden items-center justify-center bg-background p-8 text-center">
-        <div className="relative mb-6">
-          <div className="absolute -inset-1 rounded-full bg-primary/20 blur-xl animate-pulse" />
-          <div className="relative bg-secondary rounded-full p-6">
-            <MessageSquarePlus className="h-12 w-12 text-primary" />
-          </div>
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight mb-2">
-          Your messages will appear here
-        </h2>
-        <p className="text-muted-foreground max-w-[280px] text-sm mb-6">
-          Select a conversation from the sidebar to begin connecting with
-          others.
-        </p>
-      </div>
-    );
+    return <NoChatSelectedWorkspace />;
   }
 
   if (isLoading) {
-    return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-background gap-3">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground animate-pulse">
-          Loading conversation...
-        </p>
-      </div>
-    );
+    return <WorkspaceLoadingSkeleton />;
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-background border-l">
-      <ChatHeader name={name} initial={initial} status={status} />
+    <main
+      role="main"
+      aria-label={`Conversation with ${chatDetails.name}`}
+      className="flex flex-col h-dvh sm:h-full w-full bg-background min-h-0 overflow-hidden select-none sm:select-text"
+    >
+      {/* Fixed Chat Header Boundary */}
+      <header className="shrink-0 z-10 border-b border-border/40 bg-background/95 backdrop-blur-sm">
+        <ChatHeader
+          name={chatDetails.name}
+          initial={chatDetails.initial}
+          status={chatDetails.status}
+        />
+      </header>
 
-      {/* Clean: No refs passed, no scroll logic here */}
-      <MessageArea
-        messages={allMessages}
-        isLoading={isLoading}
-        onDeleteMessage={handleDeleteMessage}
-        isGroupChat={chatData?.type === "group"}
-      />
+      {/* Flexible & Scrollable Conversation Area */}
+      <section
+        aria-label="Message history"
+        className="flex-1 min-h-0 flex flex-col relative bg-background/50"
+      >
+        <MessageArea
+          messages={allMessages}
+          isLoading={false}
+          onDeleteMessage={handleDeleteMessage}
+          isGroupChat={chatData?.type === "group"}
+        />
+      </section>
 
-      <ChatInput
-        text={text}
-        setText={setText}
-        onSendMessage={() => sendMessage(text)}
-        ai={{
-          suggestions,
-          loading: aiLoading,
-          show: showAI,
-          setShow: setShowAI,
-          fetch: fetchSuggestions,
-        }}
-      />
-    </div>
+      {/* Fixed Message Composer Surface */}
+      <footer className="shrink-0 z-10 border-t border-border/40 bg-background/95 backdrop-blur-sm">
+        <ChatInput
+          text={text}
+          setText={setText}
+          onSendMessage={() => sendMessage(text)}
+          ai={{
+            suggestions,
+            loading: aiLoading,
+            show: showAI,
+            setShow: setShowAI,
+            fetch: fetchSuggestions,
+          }}
+        />
+      </footer>
+    </main>
   );
 };
 

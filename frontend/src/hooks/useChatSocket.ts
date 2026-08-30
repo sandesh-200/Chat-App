@@ -1,10 +1,12 @@
 import type { FormattedMessage } from "@/types/chat";
 import socket from "@/lib/socket";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const useChatSocket = (chatId?: string, user?: any) => {
   const [liveMessages, setLiveMessages] = useState<FormattedMessage[]>([]);
   const [text, setText] = useState("");
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     setLiveMessages([]);
@@ -15,8 +17,37 @@ export const useChatSocket = (chatId?: string, user?: any) => {
     if (!chatId || !user) return;
 
     socket.emit("join-chat", chatId);
+    socket.emit("mark-read", { conversationId: chatId });
+
+    // Optimistically mark the chat as read in the sidebar
+    queryClient.setQueryData(["chats"], (oldData: any) => {
+      if (!oldData) return oldData;
+      return {
+        ...oldData,
+        pages: oldData.pages.map((page: any) => ({
+          ...page,
+          data: page.data.map((chat: any) => {
+            if (chat._id === chatId && chat.lastMessage) {
+              return {
+                ...chat,
+                lastMessage: {
+                  ...chat.lastMessage,
+                  readBy: [...(chat.lastMessage.readBy || []), user._id]
+                }
+              };
+            }
+            return chat;
+          })
+        }))
+      };
+    });
 
     const handleMessage = (newMessage: any) => {
+      // ONLY append to live messages if it belongs to the currently active chat window
+      if (newMessage.conversationId !== chatId) return;
+      
+      socket.emit("mark-read", { conversationId: chatId });
+
       const sender = newMessage.sender;
 
       setLiveMessages((prev) => {
@@ -47,6 +78,7 @@ export const useChatSocket = (chatId?: string, user?: any) => {
       socket.off("receive-message", handleMessage);
     };
   }, [chatId, user?._id]);
+
 
   const sendMessage = (text: string) => {
     if (!text.trim() || !chatId) return;

@@ -10,6 +10,7 @@ export interface LastMessage {
   type: string;
   senderId: string;
   createdAt: string;
+  readBy?: string[];
 }
 
 interface BaseChat {
@@ -58,7 +59,7 @@ export interface FormattedMessage {
 export interface MessageAreaProps {
   messages: FormattedMessage[];
   isLoading: boolean;
-  onDeleteMessage: (messageId: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
   isGroupChat?: boolean;
 }
 
