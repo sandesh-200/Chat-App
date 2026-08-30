@@ -24,7 +24,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   Search,
   X,
-  Users,
   Loader2,
   UserX,
   MessageSquarePlus,

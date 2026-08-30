@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
-import { Search, Users, Pen, LogOut, MessageSquarePlus, MessageSquareX } from "lucide-react";
+import { Search, Pen, LogOut, MessageSquarePlus, MessageSquareX } from "lucide-react";
 
 import { Button } from "../ui/button";
 import {

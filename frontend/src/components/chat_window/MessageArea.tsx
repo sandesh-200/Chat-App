@@ -8,7 +8,7 @@ import {
   CheckCheck,
 } from "lucide-react";
 
-import type { MessageAreaProps, FormattedMessage } from "@/types/chat";
+import type { MessageAreaProps } from "@/types/chat";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,11 +27,11 @@ import {
 } from "@/components/ui/context-menu";
 
 // IMPORT YOUR NEW UTILS HERE:
-import { 
-  getInitials, 
-  getDateSeparatorLabel, 
-  isTimeGapSignificant, 
-  getEmojiOnlyDetails 
+import {
+  getInitials,
+  getDateSeparatorLabel,
+  isTimeGapSignificant,
+  getEmojiOnlyDetails
 } from "@/utils/chat-utils";
 
 
@@ -67,7 +67,7 @@ const MessageArea = ({
 }: MessageAreaProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomAnchorRef = useRef<HTMLDivElement>(null);
-  
+
   const [isAtBottom, setIsAtBottom] = useState<boolean>(true);
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
@@ -184,12 +184,10 @@ const MessageArea = ({
             emojiCount === 1 ? "text-5xl" : emojiCount === 2 ? "text-4xl" : "text-3xl";
 
           const bubbleRadiusClass = isMe
-            ? `${isFirstInGroup ? "rounded-tr-2xl" : "rounded-tr-xs"} ${
-                isLastInGroup ? "rounded-br-2xl" : "rounded-br-xs"
-              } rounded-l-2xl`
-            : `${isFirstInGroup ? "rounded-tl-2xl" : "rounded-tl-xs"} ${
-                isLastInGroup ? "rounded-bl-2xl" : "rounded-bl-xs"
-              } rounded-r-2xl`;
+            ? `${isFirstInGroup ? "rounded-tr-2xl" : "rounded-tr-xs"} ${isLastInGroup ? "rounded-br-2xl" : "rounded-br-xs"
+            } rounded-l-2xl`
+            : `${isFirstInGroup ? "rounded-tl-2xl" : "rounded-tl-xs"} ${isLastInGroup ? "rounded-bl-2xl" : "rounded-bl-xs"
+            } rounded-r-2xl`;
 
           return (
             <React.Fragment key={id || idx}>
@@ -202,9 +200,8 @@ const MessageArea = ({
               )}
 
               <div
-                className={`flex flex-col ${
-                  isMe ? "items-end" : "items-start"
-                } ${isFirstInGroup && !showDateBoundary ? "mt-3" : "mt-0.5"}`}
+                className={`flex flex-col ${isMe ? "items-end" : "items-start"
+                  } ${isFirstInGroup && !showDateBoundary ? "mt-3" : "mt-0.5"}`}
               >
                 {isGroupChat && !isMe && isFirstInGroup && (
                   <span className="text-[11px] font-semibold text-primary/90 ml-10 mb-1 tracking-tight">
@@ -230,35 +227,31 @@ const MessageArea = ({
                   <ContextMenu>
                     <ContextMenuTrigger asChild>
                       <div
-                        className={`relative transition-colors break-words ${
-                          isEmojiOnly
-                            ? `bg-transparent p-1 ${emojiSizeClass} leading-none`
-                            : `px-3.5 py-2 text-sm leading-relaxed ${bubbleRadiusClass} ${
-                                isMe
-                                  ? "bg-primary text-primary-foreground shadow-2xs"
-                                  : "bg-muted/70 dark:bg-muted/40 text-foreground border border-border/40"
-                              }`
-                        }`}
+                        className={`relative transition-colors break-words ${isEmojiOnly
+                          ? `bg-transparent p-1 ${emojiSizeClass} leading-none`
+                          : `px-3.5 py-2 text-sm leading-relaxed ${bubbleRadiusClass} ${isMe
+                            ? "bg-primary text-primary-foreground shadow-2xs"
+                            : "bg-muted/70 dark:bg-muted/40 text-foreground border border-border/40"
+                          }`
+                          }`}
                       >
                         <p className="whitespace-pre-wrap selection:bg-background/20 select-text">
                           {text}
                         </p>
 
                         <div
-                          className={`flex items-center justify-end gap-1 float-right ml-3 mt-1 text-[10px] select-none ${
-                            isEmojiOnly
-                              ? "text-muted-foreground"
-                              : isMe
+                          className={`flex items-center justify-end gap-1 float-right ml-3 mt-1 text-[10px] select-none ${isEmojiOnly
+                            ? "text-muted-foreground"
+                            : isMe
                               ? "text-primary-foreground/75"
                               : "text-muted-foreground/75"
-                          }`}
+                            }`}
                         >
                           <time>{time}</time>
                           {isMe && (
                             <CheckCheck
-                              className={`h-3.5 w-3.5 ${
-                                isEmojiOnly ? "text-primary" : "text-primary-foreground/90"
-                              }`}
+                              className={`h-3.5 w-3.5 ${isEmojiOnly ? "text-primary" : "text-primary-foreground/90"
+                                }`}
                             />
                           )}
                         </div>
@@ -286,9 +279,8 @@ const MessageArea = ({
                   </ContextMenu>
 
                   <div
-                    className={`opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex items-center shrink-0 ${
-                      isMe ? "order-first" : "order-last"
-                    }`}
+                    className={`opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex items-center shrink-0 ${isMe ? "order-first" : "order-last"
+                      }`}
                   >
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
