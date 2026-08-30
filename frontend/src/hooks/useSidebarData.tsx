@@ -16,9 +16,8 @@ export const useSidebarData = () => {
       return page < totalPages ? page + 1 : undefined;
     },
   });
-
   useEffect(() => {
-    socket.on("user-status-changed", ({ userId, status }) => {
+    const handleStatusChange = ({ userId, status }: { userId: string, status: string }) => {
       queryClient.setQueryData(["chats"], (oldData: any) => {
         if (!oldData) return oldData;
         return {
@@ -34,12 +33,51 @@ export const useSidebarData = () => {
           })),
         };
       });
-    });
+    };
+    socket.on("user-status-changed", handleStatusChange);
+
+    // Add listener for new messages to dynamically update the sidebar list
+    const handleReceiveMessage = (newMessage: any) => {
+      queryClient.setQueryData(["chats"], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any) => {
+            const updatedData = page.data.map((chat: Chat) => {
+              if (chat._id === newMessage.conversationId) {
+                return {
+                  ...chat,
+                  lastMessage: {
+                    content: newMessage.content,
+                    type: newMessage.type || "text",
+                    createdAt: newMessage.createdAt,
+                    senderId: newMessage.sender._id
+                  },
+                  updatedAt: new Date().toISOString()
+                };
+              }
+              return chat;
+            });
+
+            // Sort so the chat with the most recent message bubbles to the top
+            updatedData.sort((a: Chat, b: Chat) => 
+              new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()
+            );
+
+            return { ...page, data: updatedData };
+          }),
+        };
+      });
+    };
+    socket.on("receive-message", handleReceiveMessage);
 
     return () => {
-      socket.off("user-status-changed");
+      socket.off("user-status-changed", handleStatusChange);
+      socket.off("receive-message", handleReceiveMessage);
     };
   }, [queryClient]);
+
 
   const chats = query.data?.pages.flatMap((page) => page.data) ?? [];
 

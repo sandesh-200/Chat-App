@@ -1,5 +1,6 @@
 import { loginUser } from "@/api/auth";
 import { Button } from "@/components/ui/button";
+import socket from "@/lib/socket";
 
 import {
   Card,
@@ -42,6 +43,9 @@ export default function LoginForm() {
       const response = await loginUser(data);
       if (response && response.token) {
         localStorage.setItem("token", response.token);
+        socket.disconnect();
+        socket.auth = { token: response.token };
+        socket.connect();
       }
       await queryClient.invalidateQueries({ queryKey: ["authUser"] });
 
